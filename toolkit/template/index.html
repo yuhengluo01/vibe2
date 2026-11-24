@@ -259,10 +259,10 @@ const CAP=[
  [89.3,90.9,'每多折一次，需要的纸都长得吓人'],
  [100.0,101.9,'第 103 次：约 1070 亿光年'],
 ];
-function captions(t){for(const [a,b,s] of CAP){const k=win(t,a,b,.25,.3);if(k<=0)continue;const calm=CALM(a);
+function captions(t){if(window.COVER)return;for(const [a,b,s] of CAP){const k=win(t,a,b,.25,.3);if(k<=0)continue;const calm=CALM(a);
   if(calm)T(s,W/2,950,36,{a:k*.92,color:'#e6dccb',font:SERIF,weight:500,spacing:3,glow:10,glowColor:'rgba(0,0,0,.8)'});
   else{ctx.save();ctx.globalAlpha=k*.55;ctx.fillStyle='#000';ctx.font=`900 40px ${SANS}`;const w=ctx.measureText(s).width;ctx.fillRect(W/2-w/2-26,922,w+52,58);ctx.restore();T(s,W/2,951,40,{a:k,color:'#fff',weight:900});}}}
-function watermark(t){T('Vibe知识大赏 · 一张纸能折多厚',70,60,22,{a:.5*(1-seg(t,END-.7,END)),color:CALM(t)?'#a99f8e':'#ffffff',font:SERIF,weight:500,align:'left',spacing:2});}
+function watermark(t){if(window.COVER)return;T('Vibe知识大赏 · 一张纸能折多厚',70,60,22,{a:.5*(1-seg(t,END-.7,END)),color:CALM(t)?'#a99f8e':'#ffffff',font:SERIF,weight:500,align:'left',spacing:2});}
 function finish(t){const v=ctx.createRadialGradient(W/2,H/2,W*.3,W/2,H/2,W*.68);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,CALM(t)?'rgba(0,0,0,.72)':'rgba(0,0,0,.4)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
   const f=Math.floor(t*FPS);ctx.save();ctx.globalAlpha=CALM(t)?.07:.04;ctx.globalCompositeOperation='overlay';ctx.translate((f*37)%256,(f*91)%256);ctx.fillStyle=grain[f%4];ctx.fillRect(-256,-256,W+512,H+512);ctx.restore();}
 
