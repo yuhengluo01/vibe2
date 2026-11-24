@@ -91,7 +91,7 @@ function sceneCalm(t){if(t>=bar(9))return;
   ctx.save();ctx.globalAlpha=hud*.35;ctx.strokeStyle='#d8cfbf';ctx.lineWidth=1;ctx.beginPath();const rx=DESKX-340;ctx.moveTo(rx,BASEY);ctx.lineTo(rx,BASEY-540);
   for(let mm=0;mm<=105;mm+=5){const y=BASEY-mm*PXMM;ctx.moveTo(rx,y);ctx.lineTo(rx+(mm%10?8:16),y);}ctx.stroke();ctx.restore();
   T('10 cm',DESKX-360,BASEY-100*PXMM,20,{a:hud*.35,color:'#d8cfbf',font:SERIF,weight:500,align:'right'});
-  T('那么，折 42 次呢？',W/2,250,46,{a:win(t,15.5,16.95,.4,.35),color:CREAM,font:SERIF,weight:500,spacing:4});
+  T('那么，折 42 次呢？',W/2,250,46,{a:window.COVER?0:win(t,15.5,16.95,.4,.35),color:CREAM,font:SERIF,weight:500,spacing:4});
   if(dim>0){ctx.fillStyle=`rgba(0,0,0,${dim})`;ctx.fillRect(0,0,W,H);}}
 
 // ================= EXPLOSION: log-scale rocket camera =================
@@ -117,7 +117,7 @@ function rocket(t,n,{markers,shake,flash,phase}){
   // markers
   markers.forEach(([alt,name,val])=>{const y=TOPY+(L-Math.log10(alt))*PD;if(y<-60||y>H+60)return;const passed=h>=alt;
     ctx.save();ctx.globalAlpha=.9;ctx.strokeStyle=passed?'rgba(255,255,255,.55)':'rgba(255,255,255,.3)';ctx.setLineDash([14,12]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(W/2+90,y);ctx.lineTo(W-120,y);ctx.stroke();ctx.restore();
-    T(name,W-120,y-26,34,{color:'#fff',weight:900,align:'right'});T(val,W-120,y+24,24,{color:passed?YEL:'rgba(255,255,255,.7)',weight:700,align:'right'});});
+    if(!window.COVER)T(name,W-120,y-26,34,{color:'#fff',weight:900,align:'right'});if(!window.COVER)T(val,W-120,y+24,24,{color:passed?YEL:'rgba(255,255,255,.7)',weight:700,align:'right'});});
   // paper column
   const cg=ctx.createLinearGradient(W/2-70,0,W/2+70,0);cg.addColorStop(0,'#cfd8e6');cg.addColorStop(.5,'#ffffff');cg.addColorStop(1,'#cfd8e6');
   ctx.save();ctx.shadowColor=phase===1?'#ffffff':'#d8c8ff';ctx.shadowBlur=60;ctx.fillStyle=cg;ctx.fillRect(W/2-60,TOPY,120,H-TOPY+60);ctx.restore();
@@ -126,7 +126,7 @@ function rocket(t,n,{markers,shake,flash,phase}){
   ctx.restore();
   if(flash>0){ctx.fillStyle=`rgba(255,255,255,${flash})`;ctx.fillRect(0,0,W,H);}
   return h;}
-function counter(t,n,h,a=1){const nn=Math.floor(n);
+function counter(t,n,h,a=1){if(window.COVER)return;const nn=Math.floor(n);
   T('第',150,450,54,{a,color:'#fff',weight:900,align:'left'});
   T(String(nn),220,560,230,{a,color:YEL,weight:900,align:'left',glow:30,glowColor:'rgba(255,200,0,.5)'});
   T('次对折',160,700,48,{a,color:'#fff',weight:900,align:'left'});
@@ -140,7 +140,7 @@ function sceneBoom1(t){if(t<X1||t>=bar(15)+.05)return;
   // moon
   const L=Math.log10(h),my=TOPY+(L-Math.log10(3.844e8))*PD;const mr=lerp(120,330,clamp((L-7)/1.6));
   if(my<H+400){const cy=Math.min(my,TOPY)-mr*.86;ctx.save();ctx.shadowColor='rgba(255,255,255,.5)';ctx.shadowBlur=60;ctx.drawImage(moonTex,W/2-mr,cy-mr,mr*2,mr*2);ctx.restore();
-    T('月球',W/2+mr+40,cy-20,40,{color:'#fff',weight:900,align:'left'});T('约 38.4 万公里',W/2+mr+40,cy+30,26,{color:YEL,weight:700,align:'left'});}
+    if(!window.COVER)T('月球',W/2+mr+40,cy-20,40,{color:'#fff',weight:900,align:'left'});if(!window.COVER)T('约 38.4 万公里',W/2+mr+40,cy+30,26,{color:YEL,weight:700,align:'left'});}
   counter(t,n,h,1-seg(t,bar(15)-.4,bar(15)));
   const A=seg(t,X1e,X1e+.25)*(1-seg(t,bar(15)-.4,bar(15)));
   pop(t,X1e,W/2+330,810,k=>T('已经超过月球',W/2+330,810,64,{a:A,color:'#fff',weight:900,glow:24,glowColor:'rgba(0,0,0,.8)'}),.4);

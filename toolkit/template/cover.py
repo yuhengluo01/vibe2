@@ -1,21 +1,26 @@
-"""强反差封面：左边是安静铺垫的一帧，右边是爆点的一帧，中间一道白色斜切，底部大标题。
+"""强反差封面（抖音竖版 3:4，1080×1440）：上半是安静铺垫的一帧，下半是爆点的一帧，
+中间一道白色斜切，大标题压在画面正中间（不要放到底部）。
 
 用法（在工程目录里运行，index.html 在同目录）：
-  python3 cover.py 输出.png <铺垫秒数> <爆点秒数> "标题第一行" "标题第二行（黄色）" ["左侧小标签"] ["右侧小标签"]
+  python3 cover.py 输出.png <铺垫秒数> <爆点秒数> "标题第一行" "标题第二行（黄色）" ["上方小标签"] ["下方小标签"]
 注意：index.html 的 captions()/watermark() 开头要有 if(window.COVER)return; 封面才会去掉字幕和水印。
 例：
   python3 cover.py out-cover.png 16.0 22.75 "一张纸对折 42 次" "能撞上月球？" "第 10 次 · 10 厘米" "第 42 次 · 44 万公里"
+可选环境变量：CALM_X / BOOM_X = 主体在 1920 宽原画面里的横向中心（默认 960），CALM_Y0 / BOOM_Y0 = 裁切起始 y（默认 141 / 0），SRC_W = 从原画面截取的宽度（默认 1300，越小越放大）。
+画面里自己画的字（计数器、悬念句等）也要在 window.COVER 为 true 时隐藏，否则会被切一半留在封面上。
 """
 import sys, os, io, asyncio
 from playwright.async_api import async_playwright
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 out, t_calm, t_boom, line1, line2 = sys.argv[1], float(sys.argv[2]), float(sys.argv[3]), sys.argv[4], sys.argv[5]
-lab_calm = sys.argv[6] if len(sys.argv) > 6 else ""
-lab_boom = sys.argv[7] if len(sys.argv) > 7 else ""
+lab_top = sys.argv[6] if len(sys.argv) > 6 else ""
+lab_bot = sys.argv[7] if len(sys.argv) > 7 else ""
+CALM_X, BOOM_X = int(os.environ.get("CALM_X", 960)), int(os.environ.get("BOOM_X", 960))
+CALM_Y0, BOOM_Y0 = int(os.environ.get("CALM_Y0", 141)), int(os.environ.get("BOOM_Y0", 0))
 BLACK = "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc"
 SERIF = "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc"
+W, H = 1080, 1440
 
 def font(path, size):
     for idx in (2, 0):  # index 2 = SC in the Noto CJK collections
@@ -29,7 +34,8 @@ async def grab():
     async with async_playwright() as p:
         b = await p.chromium.launch(args=["--font-render-hinting=none"])
         pg = await b.new_page(viewport={"width": 1920, "height": 1080})
-        await pg.goto("file://" + os.path.join(os.getcwd(), "index.html")); await pg.evaluate("window.ready"); await pg.evaluate("window.COVER=true")
+        await pg.goto("file://" + os.path.join(os.getcwd(), "index.html")); await pg.evaluate("window.ready")
+        await pg.evaluate("window.COVER=true")
         shots = []
         for t in (t_calm, t_boom):
             await pg.evaluate(f"window.draw({t})")
@@ -37,47 +43,47 @@ async def grab():
         await b.close()
         return shots
 
+SRC_W = int(os.environ.get("SRC_W", 1300))   # how wide a slice of the 1920 frame goes into the cover
+def crop(img, cx, y0, w=SRC_W):
+    h = round(w * 780 / W)
+    x0 = max(0, min(1920 - w, cx - w // 2)); y0 = max(0, min(1080 - h, y0))
+    return img.crop((x0, y0, x0 + w, y0 + h)).resize((W, 780), Image.LANCZOS)
+
 calm, boom = asyncio.run(grab())
-W, H = 1920, 1080
 cover = Image.new("RGB", (W, H))
-# right: boom frame, crop away its left HUD a little and scale to fill
-bc = boom.crop((300, 0, 1920, 1080)).resize((int(1620 * 1.0), 1080))
-cover.paste(bc, (W - bc.width, 0))
-# left: calm frame centred on the subject, slightly desaturated
-cc = calm.crop((460, 0, 1460, 1080))
-cc = ImageEnhance.Color(cc).enhance(0.7)
-mask = Image.new("L", (W, H), 0)
-ImageDraw.Draw(mask).polygon([(0, 0), (860, 0), (700, H), (0, H)], fill=255)
-left = Image.new("RGB", (W, H)); left.paste(cc, (0, 0))
-cover.paste(left, (0, 0), mask)
-d = ImageDraw.Draw(cover, "RGBA")
-# white slash with glow
-glow = Image.new("RGBA", (W, H), (0, 0, 0, 0)); gd = ImageDraw.Draw(glow)
-gd.line([(860, 0), (700, H)], fill=(255, 255, 255, 255), width=34)
+# bottom: boom frame; top: calm frame (slightly desaturated) cut by a diagonal
+cover.paste(crop(boom, BOOM_X, BOOM_Y0), (0, H - 780))
+top = Image.new("RGB", (W, H)); top.paste(ImageEnhance.Color(crop(calm, CALM_X, CALM_Y0)).enhance(0.7), (0, 0))
+SL = [(0, 800), (W, 660)]                      # the white slash
+mask = Image.new("L", (W, H), 0); ImageDraw.Draw(mask).polygon([(0, 0), (W, 0), SL[1], SL[0]], fill=255)
+cover.paste(top, (0, 0), mask)
+glow = Image.new("RGBA", (W, H), (0, 0, 0, 0)); ImageDraw.Draw(glow).line(SL, fill=(255, 255, 255, 255), width=34)
 glow = glow.filter(ImageFilter.GaussianBlur(18)); cover.paste(glow, (0, 0), glow)
-d.line([(860, 0), (700, H)], fill=(255, 255, 255, 255), width=10)
-# bottom gradient band for the title
+d = ImageDraw.Draw(cover, "RGBA"); d.line(SL, fill=(255, 255, 255, 255), width=10)
+# soft dark band behind the centred title
 band = Image.new("RGBA", (W, H), (0, 0, 0, 0)); bd = ImageDraw.Draw(band)
-for y in range(560, H):
-    a = int(225 * min(1, (y - 560) / 300))
+for y in range(470, 1010):
+    a = int(170 * (1 - abs(y - 740) / 270) ** 0.8)
     bd.line([(0, y), (W, y)], fill=(0, 0, 0, a))
 cover.paste(band, (0, 0), band); d = ImageDraw.Draw(cover, "RGBA")
-# small labels
-if lab_calm:
-    f = font(SERIF, 38); d.text((60, 70), lab_calm, font=f, fill=(235, 225, 205, 235))
-if lab_boom:
-    f = font(BLACK, 44); tw = d.textlength(lab_boom, font=f); d.text((W - 80 - tw, H - 190), lab_boom, font=f, fill=(255, 210, 31, 255))
-# title
-f1, f2 = font(BLACK, 112), font(BLACK, 150)
-def shadow_text(xy, s, f, fill):
-    x, y = xy
-    for dx, dy in ((0, 6), (4, 4), (-3, 5)):
-        d.text((x + dx, y + dy), s, font=f, fill=(0, 0, 0, 200))
+
+def centred(s, f, y, fill):
+    tw = d.textlength(s, font=f)
+    if tw > W - 80:  # shrink to fit
+        f = font(BLACK, int(f.size * (W - 80) / tw)); tw = d.textlength(s, font=f)
+    x = (W - tw) / 2
+    for dx, dy in ((0, 7), (5, 5), (-4, 6)):
+        d.text((x + dx, y + dy), s, font=f, fill=(0, 0, 0, 210))
     d.text((x, y), s, font=f, fill=fill)
-shadow_text((70, 700), line1, f1, (255, 255, 255, 255))
-shadow_text((64, 840), line2, f2, (255, 210, 31, 255))
+
+centred(line1, font(BLACK, 100), 590, (255, 255, 255, 255))
+centred(line2, font(BLACK, 140), 715, (255, 210, 31, 255))
+if lab_top:
+    d.text((50, 50), lab_top, font=font(SERIF, 40), fill=(235, 225, 205, 240))
+if lab_bot:
+    f = font(BLACK, 44); d.text((50, H - 120), lab_bot, font=f, fill=(255, 210, 31, 255))
 f3 = font(BLACK, 30); s = "VIBE 知识大赏"; tw = d.textlength(s, font=f3)
-d.rounded_rectangle([W - 80 - tw - 36, H - 112, W - 80, H - 58], radius=10, fill=(255, 210, 31, 255))
-d.text((W - 80 - tw - 18, H - 106), s, font=f3, fill=(20, 20, 20, 255))
+d.rounded_rectangle([W - 50 - tw - 36, 46, W - 50, 100], radius=10, fill=(255, 210, 31, 255))
+d.text((W - 50 - tw - 18, 52), s, font=f3, fill=(20, 20, 20, 255))
 cover.save(out)
-print("cover ok", out)
+print("cover ok", out, cover.size)
